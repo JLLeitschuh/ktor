@@ -5,8 +5,6 @@ kotlin {
         commonMain {
             dependencies {
                 api project(':ktor-client:ktor-client-core')
-                api project(":ktor-http")
-                api project(":ktor-utils")
             }
         }
         commonTest {
