@@ -120,6 +120,10 @@ allprojects {
         }
 
     }
+
+    configurations {
+        testOutput
+    }
 //    apply from: rootProject.file('gradle/publish.gradle')
 
 //    if (project.parent != null && project.parent.name == 'ktor-server') {
@@ -140,7 +144,14 @@ allprojects {
 //    }
 //
 //    tasks.build.dependsOn(['sourceJar', 'emptyJar'])
+
+    task jarTest(type: Jar, dependsOn: jvmTestClasses) {
+        from kotlin.targets.jvm.compilations.test.output
+        classifier = 'test'
+    }
 }
+
+
 //
 //release {
 //    scmAdapters = [net.researchgate.release.GitAdapter]
