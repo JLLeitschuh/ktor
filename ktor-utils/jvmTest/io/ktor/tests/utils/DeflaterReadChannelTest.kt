@@ -14,8 +14,8 @@ class DeflaterReadChannelTest {
 
     @Test
     fun testWithRealFile() {
-        val file = listOf(File("test/io/ktor/tests/utils/DeflaterReadChannelTest.kt"),
-                File("ktor-server/ktor-server-tests/test/io/ktor/tests/utils/DeflaterReadChannelTest.kt")).first(File::exists)
+        val file = listOf(File("jvmTest/io/ktor/tests/utils/DeflaterReadChannelTest.kt"),
+                File("ktor-server/ktor-server-tests/jvmTest/io/ktor/tests/utils/DeflaterReadChannelTest.kt")).first(File::exists)
 
         testReadChannel(file.readText(), file.readChannel())
         testWriteChannel(file.readText(), file.readChannel())
@@ -23,8 +23,8 @@ class DeflaterReadChannelTest {
 
     @Test
     fun testFileChannel() {
-        val file = listOf(File("test/io/ktor/tests/utils/DeflaterReadChannelTest.kt"),
-                File("ktor-server/ktor-server-tests/test/io/ktor/tests/utils/DeflaterReadChannelTest.kt")).first(File::exists)
+        val file = listOf(File("jvmTest/io/ktor/tests/utils/DeflaterReadChannelTest.kt"),
+                File("ktor-server/ktor-server-tests/jvmTest/io/ktor/tests/utils/DeflaterReadChannelTest.kt")).first(File::exists)
 
         val content = file.readText()
 
