@@ -11,35 +11,38 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.io.*
 import java.io.*
 import java.nio.channels.*
+import kotlin.coroutines.*
 
 internal class ConnectionPipeline(
-    dispatcher: CoroutineDispatcher,
     keepAliveTime: Int,
     pipelineMaxSize: Int,
     socket: Socket,
-    tasks: Channel<RequestTask>
-) {
+    tasks: Channel<RequestTask>,
+    val createCallContext: () -> CoroutineContext,
+    override val coroutineContext: CoroutineContext
+): CoroutineScope {
     private val inputChannel = socket.openReadChannel()
     private val outputChannel = socket.openWriteChannel()
     private val requestLimit = Semaphore(pipelineMaxSize)
     private val responseChannel = Channel<ConnectionResponseTask>(Channel.UNLIMITED)
 
-    val pipelineContext: Job = launch(dispatcher, start = CoroutineStart.LAZY) {
+    val pipelineContext: Job = launch(start = CoroutineStart.LAZY) {
         try {
             while (true) {
                 val task = withTimeout(keepAliveTime) {
                     tasks.receive()
                 }
 
+                val callContext = createCallContext()
                 try {
                     requestLimit.enter()
-                    responseChannel.send(ConnectionResponseTask(GMTDate(), task.response, task.request))
+                    responseChannel.send(ConnectionResponseTask(GMTDate(), task.response, task.request, callContext))
                 } catch (cause: Throwable) {
                     task.response.completeExceptionally(cause)
                     throw cause
                 }
 
-                task.request.write(outputChannel)
+                task.request.write(outputChannel, callContext)
                 outputChannel.flush()
             }
         } catch (cause: ClosedChannelException) {
@@ -53,7 +56,7 @@ internal class ConnectionPipeline(
         }
     }
 
-    private val responseHandler = launch(dispatcher, start = CoroutineStart.LAZY) {
+    private val responseHandler = launch(start = CoroutineStart.LAZY) {
         socket.use {
             var shouldClose = false
             for (task in responseChannel) {
@@ -62,6 +65,7 @@ internal class ConnectionPipeline(
                     val response = parseResponse(inputChannel)
                         ?: throw EOFException("Failed to parse HTTP response: unexpected EOF")
 
+                    val callContext = task.callContext
                     val method = task.request.method
                     val contentLength = response.headers[HttpHeaders.ContentLength]?.toString()?.toLong() ?: -1L
                     val transferEncoding = response.headers[HttpHeaders.TransferEncoding]
@@ -71,7 +75,9 @@ internal class ConnectionPipeline(
 
                     val hasBody = (contentLength > 0 || chunked) && method != HttpMethod.Head
 
-                    val writerJob = if (hasBody) writer(Unconfined, autoFlush = true) {
+                    val writerJob = if (hasBody) GlobalScope.writer(
+                        Dispatchers.Unconfined + callContext[Job]!!, autoFlush = true
+                    ) {
                         parseHttpBody(contentLength, transferEncoding, connectionType, inputChannel, channel)
                     } else null
 
@@ -81,7 +87,8 @@ internal class ConnectionPipeline(
                             task.requestTime,
                             writerJob?.channel ?: ByteReadChannel.Empty,
                             response,
-                            pipelined = hasBody && !chunked
+                            pipelined = hasBody && !chunked,
+                            coroutineContext = callContext
                         )
                     )
                     writerJob

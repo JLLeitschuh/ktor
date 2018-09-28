@@ -36,7 +36,6 @@ fun Path.normalizeAndRelativize(): Path =
     root?.relativize(this)?.normalize()?.dropLeadingTopDirs() ?: normalize().dropLeadingTopDirs()
 
 private fun Path.dropLeadingTopDirs(): Path {
-    return this
     val startIndex = indexOfFirst { it.toString() != ".." }
     if (startIndex == 0) return this
     return subpath(startIndex, nameCount)
