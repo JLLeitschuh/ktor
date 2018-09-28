@@ -16,7 +16,7 @@ abstract class HttpClientJvmEngine(engineName: String) : HttpClientEngine {
         dispatcher + Supervisor() + CoroutineName("$engineName-context")
     }
 
-    protected fun createCallContext() = coroutineContext + CompletableDeferred<Unit>()
+    protected fun createCallContext() = coroutineContext + CompletableDeferred<Unit>(coroutineContext[Job])
 
     override fun close() {
         dispatcher.close()
